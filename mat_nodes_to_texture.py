@@ -1,15 +1,16 @@
 bl_info = {
     "name": "Material Nodes To Texture",
     "author": "Athina Syntychaki",
-    "version": (1.0),
+    "version": (2, 5),
     "blender": (4, 0, 0),
-    "location": "Node Editor > Sidebar > Node to Texture",
-    "description": "Bakes active node's output to texture",
-    "category": "Bake",
+    "location": "Node Editor > Sidebar > NodetoTex",
+    "description": "Bakes material node outputs to textures",
+    "category": "Node",
 }
 
 import bpy
 import os
+
 
 def get_unique_path(folder, filename, extension):
     base_name = filename
@@ -25,6 +26,7 @@ def get_default_path():
         return os.path.join(os.path.dirname(bpy.data.filepath), "Baked_Nodes")
     return os.path.join(os.path.expanduser("~"), "Blender_Baked_Nodes")
 
+
 class NTT_OT_BakeNodes(bpy.types.Operator):
     bl_idname = "node.to_texture"
     bl_label = "Bake Selected to Texture"
@@ -35,7 +37,7 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
         obj = context.active_object
         
         if not obj or obj.type != 'MESH':
-            self.report({'ERROR'}, "Select a Mesh object first.")
+            self.report({'ERROR'}, "Select a Mesh object.")
             return {'CANCELLED'}
 
         mat = obj.active_material
@@ -67,7 +69,7 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
         target_filepath = get_unique_path(save_folder, base_filename, ext)
         final_name = os.path.splitext(os.path.basename(target_filepath))[0]
 
-        # Setup Target Image
+    
         image = bpy.data.images.new(
             final_name, 
             width=sc.NTT_resolution, 
@@ -81,7 +83,6 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
         target_tex_node.image = image
         target_tex_node.location = (active_node.location.x + 400, active_node.location.y)
 
-        #color management save
         r = context.scene.render
         orig_engine = r.engine
         cv = context.scene.view_settings
@@ -96,8 +97,6 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
             cv.gamma = 1.0
             
             nodes.active = target_tex_node 
-
-            # setup Temporary Output Bridge
             temp_out = nodes.new('ShaderNodeOutputMaterial')
             temp_out.is_active_output = True
             
@@ -144,3 +143,49 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
 
         self.report({'INFO'}, f"Baked: {final_name}")
         return {'FINISHED'}
+
+
+class NTT_PT_Panel(bpy.types.Panel):
+    bl_label = "Node to Texture"
+    bl_idname = "NTT_PT_Panel"
+    bl_space_type = 'NODE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = 'Node to Texture'
+
+    def draw(self, context):
+        layout = self.layout
+        sc = context.scene
+        layout.prop(sc, "NTT_bake_type")
+        layout.prop(sc, "NTT_use_float")
+        layout.prop(sc, "NTT_resolution")
+        layout.prop(sc, "NTT_bake_name")
+        layout.prop(sc, "NTT_bake_path")
+        layout.separator()
+        layout.operator("node.to_texture", text="Bake & Replace", icon='RENDER_STILL')
+
+def register():
+    bpy.utils.register_class(NTT_OT_BakeNodes)
+    bpy.utils.register_class(NTT_PT_Panel)
+    bpy.types.Scene.NTT_resolution = bpy.props.IntProperty(name="Resolution", default=1024, min=64, max=8192)
+    bpy.types.Scene.NTT_use_float = bpy.props.BoolProperty(name="32-bit Float (HDR)", default=False)
+    bpy.types.Scene.NTT_bake_name = bpy.props.StringProperty(name="Name", default="BakedTexture")
+    bpy.types.Scene.NTT_bake_path = bpy.props.StringProperty(name="Folder", subtype='DIR_PATH', default="")
+    bpy.types.Scene.NTT_bake_type = bpy.props.EnumProperty(
+        name="Bake Type",
+        items=[('EMIT', 'Color (sRGB)', 'Bake visual colors'),
+               ('DATA', 'Data/Math (Non-Color)', 'Bake Linear Light, Roughness, etc.'),
+               ('NORMAL', 'Normal Map (Non-Color)', 'Bake Tangent Normals')],
+        default='EMIT'
+    )
+
+def unregister():
+    bpy.utils.unregister_class(NTT_OT_BakeNodes)
+    bpy.utils.unregister_class(NTT_PT_Panel)
+    del bpy.types.Scene.NTT_resolution
+    del bpy.types.Scene.NTT_use_float
+    del bpy.types.Scene.NTT_bake_name
+    del bpy.types.Scene.NTT_bake_path
+    del bpy.types.Scene.NTT_bake_type
+
+if __name__ == "__main__":
+    register()
