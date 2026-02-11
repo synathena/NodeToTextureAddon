@@ -1,11 +1,11 @@
 bl_info = {
     "name": "Node To Texture",
     "author": "Athina Syntychaki",
-    "version": (1.1),
+    "version": (1, 2, 0),
     "blender": (4, 0, 0),
     "location": "Node Editor > Sidebar > Node to Texture",
     "description": "Bakes material node outputs to textures",
-    "category": "Bake, Material",
+    "category": "Bake",
 }
 
 import bpy
@@ -62,18 +62,20 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
         
         original_destinations = [link.to_socket for link in output_socket.links]
 
-        bpy.ops.mesh.primitive_plane_add(size=1, location=(0, 0, 10000))
-        proxy_obj = context.active_object
-        proxy_obj.name = "NTT_Temp_Bake_Proxy"
-        
-        if not proxy_obj.data.materials:
-            proxy_obj.data.materials.append(mat)
-        else:
-            proxy_obj.data.materials[0] = mat
+        proxy_obj = None
+        if sc.NTT_use_proxy:
+            bpy.ops.mesh.primitive_plane_add(size=1, location=(0, 0, 0))
+            proxy_obj = context.active_object
+            proxy_obj.name = "NTT_Temp_Bake_Proxy"
+            
+            if not proxy_obj.data.materials:
+                proxy_obj.data.materials.append(mat)
+            else:
+                proxy_obj.data.materials[0] = mat
 
-        bpy.ops.object.select_all(action='DESELECT')
-        proxy_obj.select_set(True)
-        context.view_layer.objects.active = proxy_obj
+            bpy.ops.object.select_all(action='DESELECT')
+            proxy_obj.select_set(True)
+            context.view_layer.objects.active = proxy_obj
 
         save_folder = sc.NTT_bake_path or get_default_path()
         if not os.path.exists(save_folder): os.makedirs(save_folder)
@@ -153,14 +155,16 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
             cv.use_curve_mapping = orig_curves
             cv.use_white_balance = orig_white_balance
             
-            bpy.data.objects.remove(proxy_obj, do_unlink=True)
+            if proxy_obj:
+                bpy.data.objects.remove(proxy_obj, do_unlink=True)
             if obj and obj.name in context.scene.objects:
                 obj.select_set(True)
                 context.view_layer.objects.active = obj
 
         if sc.NTT_bake_type == 'NORMAL':
             norm_map_node = nodes.new('ShaderNodeNormalMap')
-            norm_map_node.location = (target_tex_node.location.x + 10, target_tex_node.location.y +10)
+            norm_map_node.parent = node_parent
+            norm_map_node.location = (target_tex_node.location.x + 30, target_tex_node.location.y +30)
             links.new(target_tex_node.outputs['Color'], norm_map_node.inputs['Color'])
             for target_socket in original_destinations:
                 links.new(norm_map_node.outputs['Normal'], target_socket)
@@ -183,6 +187,7 @@ class NTT_PT_Panel(bpy.types.Panel):
         layout = self.layout
         sc = context.scene
         layout.prop(sc, "NTT_bake_type")
+        layout.prop(sc, "NTT_use_proxy")
         layout.prop(sc, "NTT_use_float")
         layout.prop(sc, "NTT_resolution")
         layout.prop(sc, "NTT_bake_name")
@@ -195,6 +200,7 @@ def register():
     bpy.utils.register_class(NTT_PT_Panel)
     bpy.types.Scene.NTT_resolution = bpy.props.IntProperty(name="Resolution", default=1024, min=64, max=8192)
     bpy.types.Scene.NTT_use_float = bpy.props.BoolProperty(name="32-bit Float (HDR)", default=False)
+    bpy.types.Scene.NTT_use_proxy = bpy.props.BoolProperty(name="Tileable Texture", default=True, description="Bake on a 0-1 UV space. Turn off to bake on the object's UVs.")
     bpy.types.Scene.NTT_bake_name = bpy.props.StringProperty(name="Name", default="BakedTexture")
     bpy.types.Scene.NTT_bake_path = bpy.props.StringProperty(name="Folder", subtype='DIR_PATH', default="")
     bpy.types.Scene.NTT_bake_type = bpy.props.EnumProperty(
@@ -210,6 +216,7 @@ def unregister():
     bpy.utils.unregister_class(NTT_PT_Panel)
     del bpy.types.Scene.NTT_resolution
     del bpy.types.Scene.NTT_use_float
+    del bpy.types.Scene.NTT_use_proxy
     del bpy.types.Scene.NTT_bake_name
     del bpy.types.Scene.NTT_bake_path
     del bpy.types.Scene.NTT_bake_type
