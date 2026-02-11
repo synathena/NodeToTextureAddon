@@ -48,6 +48,7 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
         nodes = mat.node_tree.nodes
         links = mat.node_tree.links
         active_node = nodes.active
+        node_parent = active_node.parent
         
         if not active_node:
             self.report({'ERROR'}, "No Active node found.")
@@ -60,6 +61,19 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
                 break
         
         original_destinations = [link.to_socket for link in output_socket.links]
+
+        bpy.ops.mesh.primitive_plane_add(size=1, location=(0, 0, 10000))
+        proxy_obj = context.active_object
+        proxy_obj.name = "NTT_Temp_Bake_Proxy"
+        
+        if not proxy_obj.data.materials:
+            proxy_obj.data.materials.append(mat)
+        else:
+            proxy_obj.data.materials[0] = mat
+
+        bpy.ops.object.select_all(action='DESELECT')
+        proxy_obj.select_set(True)
+        context.view_layer.objects.active = proxy_obj
 
         save_folder = sc.NTT_bake_path or get_default_path()
         if not os.path.exists(save_folder): os.makedirs(save_folder)
@@ -82,7 +96,8 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
 
         target_tex_node = nodes.new('ShaderNodeTexImage')
         target_tex_node.image = image
-        target_tex_node.location = (active_node.location.x + 1, active_node.location.y + 1)
+        target_tex_node.parent = node_parent
+        target_tex_node.location = (active_node.location.x + 10, active_node.location.y + 10)
 
         r = context.scene.render
         orig_engine = r.engine
@@ -137,10 +152,15 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
             cv.gamma = orig_gamma
             cv.use_curve_mapping = orig_curves
             cv.use_white_balance = orig_white_balance
+            
+            bpy.data.objects.remove(proxy_obj, do_unlink=True)
+            if obj and obj.name in context.scene.objects:
+                obj.select_set(True)
+                context.view_layer.objects.active = obj
 
         if sc.NTT_bake_type == 'NORMAL':
             norm_map_node = nodes.new('ShaderNodeNormalMap')
-            norm_map_node.location = (target_tex_node.location.x + 250, target_tex_node.location.y)
+            norm_map_node.location = (target_tex_node.location.x + 10, target_tex_node.location.y +10)
             links.new(target_tex_node.outputs['Color'], norm_map_node.inputs['Color'])
             for target_socket in original_destinations:
                 links.new(norm_map_node.outputs['Normal'], target_socket)
