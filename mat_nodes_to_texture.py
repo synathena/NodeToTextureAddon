@@ -1,11 +1,11 @@
 bl_info = {
-    "name": "Material Nodes To Texture",
+    "name": "Material Nodes To Textures",
     "author": "Athina Syntychaki",
-    "version": (2, 5),
+    "version": (1.1),
     "blender": (4, 0, 0),
     "location": "Node Editor > Sidebar > NodetoTex",
     "description": "Bakes material node outputs to textures",
-    "category": "Node",
+    "category": "Bake",
 }
 
 import bpy
