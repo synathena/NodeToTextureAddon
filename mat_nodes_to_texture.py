@@ -3,7 +3,7 @@ bl_info = {
     "author": "Athina Syntychaki",
     "version": (1.1),
     "blender": (4, 0, 0),
-    "location": "Node Editor > Sidebar > NodetoTex",
+    "location": "Node Editor > Sidebar > Node to Texture",
     "description": "Bakes material node outputs to textures",
     "category": "Bake",
 }
