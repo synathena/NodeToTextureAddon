@@ -1,11 +1,11 @@
 bl_info = {
-    "name": "Material Nodes To Textures",
+    "name": "Node To Texture",
     "author": "Athina Syntychaki",
     "version": (1.1),
     "blender": (4, 0, 0),
     "location": "Node Editor > Sidebar > Node to Texture",
     "description": "Bakes material node outputs to textures",
-    "category": "Bake",
+    "category": "Bake, Material",
 }
 
 import bpy
@@ -77,11 +77,12 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
             float_buffer=sc.NTT_use_float,
             alpha=False 
         )
+        
         image.colorspace_settings.name = 'Non-Color' if sc.NTT_bake_type in ['NORMAL', 'DATA'] else 'sRGB'
 
         target_tex_node = nodes.new('ShaderNodeTexImage')
         target_tex_node.image = image
-        target_tex_node.location = (active_node.location.x + 400, active_node.location.y)
+        target_tex_node.location = (active_node.location.x + 1, active_node.location.y + 1)
 
         r = context.scene.render
         orig_engine = r.engine
@@ -89,12 +90,16 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
         orig_transform = cv.view_transform
         orig_exposure = cv.exposure
         orig_gamma = cv.gamma
+        orig_curves = cv.use_curve_mapping
+        orig_white_balance = cv.use_white_balance
 
         try:
             r.engine = 'CYCLES'
             cv.view_transform = 'Standard'
             cv.exposure = 0.0
             cv.gamma = 1.0
+            cv.use_curve_mapping = False
+            cv.use_white_balance = False
             
             nodes.active = target_tex_node 
             temp_out = nodes.new('ShaderNodeOutputMaterial')
@@ -130,6 +135,8 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
             cv.view_transform = orig_transform
             cv.exposure = orig_exposure
             cv.gamma = orig_gamma
+            cv.use_curve_mapping = orig_curves
+            cv.use_white_balance = orig_white_balance
 
         if sc.NTT_bake_type == 'NORMAL':
             norm_map_node = nodes.new('ShaderNodeNormalMap')
@@ -172,9 +179,9 @@ def register():
     bpy.types.Scene.NTT_bake_path = bpy.props.StringProperty(name="Folder", subtype='DIR_PATH', default="")
     bpy.types.Scene.NTT_bake_type = bpy.props.EnumProperty(
         name="Bake Type",
-        items=[('EMIT', 'Color (sRGB)', 'Bake visual colors'),
-               ('DATA', 'Data/Math (Non-Color)', 'Bake Linear Light, Roughness, etc.'),
-               ('NORMAL', 'Normal Map (Non-Color)', 'Bake Tangent Normals')],
+        items=[('EMIT', 'Color (sRGB)', 'Bake visual colors like basecolor and emission'),
+               ('DATA', 'Data (Non-Color)', 'Bake Metallic, Roughness, etc.'),
+               ('NORMAL', 'Normal Map (Non-Color)', 'Bake tangent normals from a Normal Map or a Bump node')],
         default='EMIT'
     )
 
