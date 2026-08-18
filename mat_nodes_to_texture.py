@@ -112,6 +112,7 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
 
         bake = r.bake
         orig_use_selected_to_active = bake.use_selected_to_active
+        orig_margin = bake.margin
 
         try:
             r.engine = 'CYCLES'
@@ -122,6 +123,8 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
             cv.use_white_balance = False
 
             bake.use_selected_to_active = False
+            if sc.NTT_use_proxy:
+                bake.margin = 0
             
             nodes.active = target_tex_node 
             temp_out = nodes.new('ShaderNodeOutputMaterial')
@@ -161,6 +164,7 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
             cv.use_white_balance = orig_white_balance
 
             bake.use_selected_to_active = orig_use_selected_to_active
+            bake.margin = orig_margin
             
             if proxy_obj:
                 bpy.data.objects.remove(proxy_obj, do_unlink=True)
