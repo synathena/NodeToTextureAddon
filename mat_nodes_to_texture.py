@@ -110,6 +110,9 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
         orig_curves = cv.use_curve_mapping
         orig_white_balance = cv.use_white_balance
 
+        bake = r.bake
+        orig_use_selected_to_active = bake.use_selected_to_active
+
         try:
             r.engine = 'CYCLES'
             cv.view_transform = 'Standard'
@@ -117,6 +120,8 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
             cv.gamma = 1.0
             cv.use_curve_mapping = False
             cv.use_white_balance = False
+
+            bake.use_selected_to_active = False
             
             nodes.active = target_tex_node 
             temp_out = nodes.new('ShaderNodeOutputMaterial')
@@ -154,6 +159,8 @@ class NTT_OT_BakeNodes(bpy.types.Operator):
             cv.gamma = orig_gamma
             cv.use_curve_mapping = orig_curves
             cv.use_white_balance = orig_white_balance
+
+            bake.use_selected_to_active = orig_use_selected_to_active
             
             if proxy_obj:
                 bpy.data.objects.remove(proxy_obj, do_unlink=True)
